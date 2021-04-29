@@ -71,13 +71,13 @@ def _check_docker_machine_path(path: Optional[str]) -> None:
             "paths: {mounts}.\n"
             "See https://docs.docker.com/toolbox/toolbox_install_windows/"
             "#optional-add-shared-directories for instructions on how to "
-            "add this path to your VM.".format(path=path, name=name, mounts=mounts)
-        )
+            "add this path to your VM.".format(path=path,
+                                               name=name,
+                                               mounts=mounts))
 
 
 class DockerCommandLineJob(ContainerCommandLineJob):
     """Runs a CommandLineJob in a sofware container using the Docker engine."""
-
     def __init__(
         self,
         builder: Builder,
@@ -88,7 +88,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         name: str,
     ) -> None:
         """Initialize a command line builder using the Docker software container engine."""
-        super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
+        super().__init__(builder, joborder, make_path_mapper, requirements,
+                         hints, name)
 
     @staticmethod
     def get_image(
@@ -104,23 +105,18 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         """
         found = False
 
-        if (
-            "dockerImageId" not in docker_requirement
-            and "dockerPull" in docker_requirement
-        ):
-            docker_requirement["dockerImageId"] = docker_requirement["dockerPull"]
+        if ("dockerImageId" not in docker_requirement
+                and "dockerPull" in docker_requirement):
+            docker_requirement["dockerImageId"] = docker_requirement[
+                "dockerPull"]
 
         with _IMAGES_LOCK:
             if docker_requirement["dockerImageId"] in _IMAGES:
                 return True
 
-        for line in (
-            subprocess.check_output(  # nosec
-                ["docker", "images", "--no-trunc", "--all"]
-            )
-            .decode("utf-8")
-            .splitlines()
-        ):
+        for line in (subprocess.check_output(  # nosec
+            ["docker", "images", "--no-trunc",
+             "--all"]).decode("utf-8").splitlines()):
             try:
                 match = re.match(r"^([^ ]+)\s+([^ ]+)\s+([^ ]+)", line)
                 split = docker_requirement["dockerImageId"].split(":")
@@ -140,8 +136,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 # check for repository:tag match or image id match
                 if match and (
                     (split[0] == match.group(1) and split[1] == match.group(2))
-                    or docker_requirement["dockerImageId"] == match.group(3)
-                ):
+                        or docker_requirement["dockerImageId"]
+                        == match.group(3)):
                     found = True
                     break
             except ValueError:
@@ -156,8 +152,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 found = True
             elif "dockerFile" in docker_requirement:
                 dockerfile_dir = create_tmp_dir(tmp_outdir_prefix)
-                with open(os.path.join(dockerfile_dir, "Dockerfile"), "wb") as dfile:
-                    dfile.write(docker_requirement["dockerFile"].encode("utf-8"))
+                with open(os.path.join(dockerfile_dir, "Dockerfile"),
+                          "wb") as dfile:
+                    dfile.write(
+                        docker_requirement["dockerFile"].encode("utf-8"))
                 cmd = [
                     "docker",
                     "build",
@@ -177,17 +175,17 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     )
                     with open(docker_requirement["dockerLoad"], "rb") as dload:
                         loadproc = subprocess.Popen(  # nosec
-                            cmd, stdin=dload, stdout=sys.stderr
-                        )
+                            cmd, stdin=dload, stdout=sys.stderr)
                 else:
                     loadproc = subprocess.Popen(  # nosec
-                        cmd, stdin=subprocess.PIPE, stdout=sys.stderr
-                    )
+                        cmd,
+                        stdin=subprocess.PIPE,
+                        stdout=sys.stderr)
                     assert loadproc.stdin is not None  # nosec
-                    _logger.info(
-                        "Sending GET request to %s", docker_requirement["dockerLoad"]
-                    )
-                    req = requests.get(docker_requirement["dockerLoad"], stream=True)
+                    _logger.info("Sending GET request to %s",
+                                 docker_requirement["dockerLoad"])
+                    req = requests.get(docker_requirement["dockerLoad"],
+                                       stream=True)
                     size = 0
                     for chunk in req.iter_content(1024 * 1024):
                         size += len(chunk)
@@ -197,8 +195,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 rcode = loadproc.wait()
                 if rcode != 0:
                     raise WorkflowException(
-                        "Docker load returned non-zero exit status %i" % (rcode)
-                    )
+                        "Docker load returned non-zero exit status %i" %
+                        (rcode))
                 found = True
             elif "dockerImport" in docker_requirement:
                 cmd = [
@@ -227,16 +225,17 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if not shutil.which("docker"):
             raise WorkflowException("docker executable is not available")
 
-        if self.get_image(
-            cast(Dict[str, str], r), pull_image, force_pull, tmp_outdir_prefix
-        ):
+        if self.get_image(cast(Dict[str, str], r), pull_image, force_pull,
+                          tmp_outdir_prefix):
             return cast(Optional[str], r["dockerImageId"])
-        raise WorkflowException("Docker image %s not found" % r["dockerImageId"])
+        raise WorkflowException("Docker image %s not found" %
+                                r["dockerImageId"])
 
     @staticmethod
-    def append_volume(
-        runtime: List[str], source: str, target: str, writable: bool = False
-    ) -> None:
+    def append_volume(runtime: List[str],
+                      source: str,
+                      target: str,
+                      writable: bool = False) -> None:
         """Add binding arguments to the runtime list."""
         options = [
             "type=bind",
@@ -253,9 +252,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if not os.path.exists(source):
             os.makedirs(source)
 
-    def add_file_or_directory_volume(
-        self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
-    ) -> None:
+    def add_file_or_directory_volume(self, runtime: List[str],
+                                     volume: MapperEnt,
+                                     host_outdir_tgt: Optional[str]) -> None:
         """Append volume a file/dir mapping to the runtime option list."""
         if not volume.resolved.startswith("_:"):
             _check_docker_machine_path(volume.resolved)
@@ -270,7 +269,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     ) -> None:
         """Append a writable file mapping to the runtime option list."""
         if self.inplace_update:
-            self.append_volume(runtime, volume.resolved, volume.target, writable=True)
+            self.append_volume(runtime,
+                               volume.resolved,
+                               volume.target,
+                               writable=True)
         else:
             if host_outdir_tgt:
                 # shortcut, just copy to the output directory
@@ -280,9 +282,13 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 shutil.copy(volume.resolved, host_outdir_tgt)
             else:
                 tmpdir = create_tmp_dir(tmpdir_prefix)
-                file_copy = os.path.join(tmpdir, os.path.basename(volume.resolved))
+                file_copy = os.path.join(tmpdir,
+                                         os.path.basename(volume.resolved))
                 shutil.copy(volume.resolved, file_copy)
-                self.append_volume(runtime, file_copy, volume.target, writable=True)
+                self.append_volume(runtime,
+                                   file_copy,
+                                   volume.target,
+                                   writable=True)
             ensure_writable(host_outdir_tgt or file_copy)
 
     def add_writable_directory_volume(
@@ -300,20 +306,28 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     create_tmp_dir(tmpdir_prefix),
                     os.path.basename(volume.target),
                 )
-                self.append_volume(runtime, new_dir, volume.target, writable=True)
+                self.append_volume(runtime,
+                                   new_dir,
+                                   volume.target,
+                                   writable=True)
             elif not os.path.exists(host_outdir_tgt):
                 os.makedirs(host_outdir_tgt)
         else:
             if self.inplace_update:
-                self.append_volume(
-                    runtime, volume.resolved, volume.target, writable=True
-                )
+                self.append_volume(runtime,
+                                   volume.resolved,
+                                   volume.target,
+                                   writable=True)
             else:
                 if not host_outdir_tgt:
                     tmpdir = create_tmp_dir(tmpdir_prefix)
-                    new_dir = os.path.join(tmpdir, os.path.basename(volume.resolved))
+                    new_dir = os.path.join(tmpdir,
+                                           os.path.basename(volume.resolved))
                     shutil.copytree(volume.resolved, new_dir)
-                    self.append_volume(runtime, new_dir, volume.target, writable=True)
+                    self.append_volume(runtime,
+                                       new_dir,
+                                       volume.target,
+                                       writable=True)
                 else:
                     shutil.copytree(volume.resolved, host_outdir_tgt)
                 ensure_writable(host_outdir_tgt or new_dir)
@@ -328,9 +342,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         }
 
     def create_runtime(
-        self, env: MutableMapping[str, str], runtimeContext: RuntimeContext
-    ) -> Tuple[List[str], Optional[str]]:
-        any_path_okay = self.builder.get_requirement("DockerRequirement")[1] or False
+            self, env: MutableMapping[str, str],
+            runtimeContext: RuntimeContext) -> Tuple[List[str], Optional[str]]:
+        any_path_okay = self.builder.get_requirement(
+            "DockerRequirement")[1] or False
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
             if "udocker" in user_space_docker_cmd and not runtimeContext.debug:
@@ -340,13 +355,17 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             else:
                 runtime = [user_space_docker_cmd, "run"]
         else:
-            runtime = ["docker", "run", "-i"]
-        self.append_volume(
-            runtime, os.path.realpath(self.outdir), self.builder.outdir, writable=True
-        )
-        self.append_volume(
-            runtime, os.path.realpath(self.tmpdir), self.CONTAINER_TMPDIR, writable=True
-        )
+            runtime = [
+                "docker", "run", "--gpus", 'device=0', "-i", '-p', '8787:8787'
+            ]
+        self.append_volume(runtime,
+                           os.path.realpath(self.outdir),
+                           self.builder.outdir,
+                           writable=True)
+        self.append_volume(runtime,
+                           os.path.realpath(self.tmpdir),
+                           self.CONTAINER_TMPDIR,
+                           writable=True)
         self.add_volumes(
             self.pathmapper,
             runtime,
@@ -385,9 +404,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             euid, egid = docker_vm_id()
             euid, egid = euid or os.geteuid(), egid or os.getgid()
 
-            if runtimeContext.no_match_user is False and (
-                euid is not None and egid is not None
-            ):
+            if runtimeContext.no_match_user is False and (euid is not None and
+                                                          egid is not None):
                 runtime.append("--user=%d:%d" % (euid, egid))
 
         if runtimeContext.rm_container:
@@ -409,15 +427,18 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     _logger.error(
                         "--cidfile-dir %s error:\n%s",
                         cidfile_dir,
-                        cidfile_dir + " is not a directory, please check it first",
+                        cidfile_dir +
+                        " is not a directory, please check it first",
                     )
                     exit(2)
             else:
                 cidfile_dir = runtimeContext.create_tmpdir()
 
-            cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
+            cidfile_name = datetime.datetime.now().strftime(
+                "%Y%m%d%H%M%S-%f") + ".cid"
             if runtimeContext.cidfile_prefix is not None:
-                cidfile_name = str(runtimeContext.cidfile_prefix + "-" + cidfile_name)
+                cidfile_name = str(runtimeContext.cidfile_prefix + "-" +
+                                   cidfile_name)
             cidfile_path = os.path.join(cidfile_dir, cidfile_name)
             runtime.append("--cidfile=%s" % cidfile_path)
         for key, value in self.environment.items():
