@@ -355,9 +355,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             else:
                 runtime = [user_space_docker_cmd, "run"]
         else:
-            runtime = [
-                "docker", "run", "--gpus", 'device=0', "-i", '-p', '8787:8787'
-            ]
+            runtime = ["docker", "run", "-i"]
+        runtime.extend(_get_docker_params_from_env())
         self.append_volume(runtime,
                            os.path.realpath(self.outdir),
                            self.builder.outdir,
@@ -461,3 +460,13 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 )
 
         return runtime, cidfile_path
+
+
+def _get_docker_params_from_env(env_start='CWLDOCKER_'):
+    params = []
+    keys = [k for k in os.environ if k.startswith(env_start)]
+    for key in keys:
+        param = key.split(env_start)[1]
+        params.append(f'--{param.lower()}')
+        params.append(os.environ[key])
+    return params
