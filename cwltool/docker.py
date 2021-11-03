@@ -466,7 +466,9 @@ def _get_docker_params_from_env(env_start='CWLDOCKER_'):
     params = []
     keys = [k for k in os.environ if k.startswith(env_start)]
     for key in keys:
-        param = key.split(env_start)[1]
-        params.append(f'--{param.lower()}')
-        params.append(os.environ[key])
+        value = os.environ[key]
+        if value:
+            param = key.split(env_start)[1]
+            params.append(f'--{param.lower()}')
+            params.append(value)
     return params
